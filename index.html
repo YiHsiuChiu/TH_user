@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>TH_User_UI</title>
+    <link href="bootstrap/css/bootstrap.min.css" rel="stylesheet">
+    <script src="./index.js"></script>
+</head>
+
+<body>
+    <div class="d-flex flex-column justify-content-center align-items-center mt-5" style="margin-top: 0;" id="wrapper">
+        <p style="font-family: Microsoft YaHei; font-size: 20pt; text-align: center; font-weight: bold;">TH_user</p>
+        <div class="d-inline-block"><input type="button" id="btn" value="開始停車" disabled="disabled" class="btn btn-primary" style="width: 300px;"
+                onclick="connectBLE()"></div>
+        <br>
+    </div>
+    <table style="width:95%;margin:auto;">
+        <tr>
+            <td width="5%"><img src="img/tick.png" id="step1" style="float:right; margin: 1px; visibility:visible" width="26px"></td>
+            <td width="45%" style="line-height: 100%;">
+                <p style="font-family: Microsoft YaHei; margin:0;font-size:16px;">搜尋停車服務(藍牙)</p>
+            </td>
+
+            <td width="5%"><img src="img/tick.png" id="step2" style="float:right; margin: 1px; visibility:hidden" width="26px"></td>
+            <td width="45%" style="line-height: 100%;">
+                <p style="font-family: Microsoft YaHei; margin:0;font-size:16px;">接收車柱資訊(藍牙)</p>
+            </td>
+        </tr>
+        <tr>
+            <td width="5%"><img src="img/tick.png" id="step3" style="float:right; margin: 1px; visibility:hidden" width="26px"></td>
+            <td width="45%" style="line-height: 100%;">
+                <p style="font-family: Microsoft YaHei; margin:0;font-size:16px;">取得付款資訊(MQTT)</p>
+            </td>
+
+            <td width="5%"><img src="img/tick.png" id="step4" style="float:right; margin: 1px; visibility:hidden" width="26px"></td>
+            <td width="45%" style="line-height: 100%;">
+                <p style="font-family: Microsoft YaHei; margin:0;font-size:16px;">交易簽章</p>
+            </td>
+        </tr>
+        <tr>
+            <td width="5%"><img src="img/tick.png" id="step5" style="float:right; margin: 1px; visibility:hidden" width="26px"></td>
+            <td width="45%" style="line-height: 100%;">
+                <p style="font-family: Microsoft YaHei; margin:0;font-size:16px;">傳送交易至區塊鏈</p>
+            </td>
+
+            <td width="5%"><img src="img/tick.png" id="step6" style="float:right; margin: 1px; visibility:hidden" width="26px"></td>
+            <td width="45%" style="line-height: 100%;">
+                <p style="font-family: Microsoft YaHei; margin:0;font-size:16px;">交易成功，開始充電</p>
+            </td>
+        </tr>
+    </table>
+    <br><br>
+    <p id="console" style="font-family: Microsoft YaHei; font-size:18px; margin-left:10%; margin-right:10%;"></p>
+</body>
+
+</html>
