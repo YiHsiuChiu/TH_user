@@ -1,43 +1,30 @@
 var noble = require('@abandonware/noble');
 var mqtt = require('mqtt');
 let Web3 = require('web3');
-//const { Gpio } = require('onoff');
 const express = require('express')
 const SocketServer = require('ws').Server
-//var open = require("open");
 const exec = require('child_process').exec
-
 const EthereumTx = require('ethereumjs-tx').Transaction;
 const Common = require('ethereumjs-common').default;
 const secp256k1 = require('secp256k1');
 const publicKeyToAddress = require('ethereum-public-key-to-address')
-
 var SerialPort = require('serialport');
 var delay = require('delay');
 
 //指定開啟的 port
 const PORT = 3000
-
 //創建 express 的物件，並綁定及監聽 3000 port ，且設定開啟後在 console 中提示
 const server = express().listen(PORT, () => console.log(`Listening on ${PORT}`))
-
 //將 express 交給 SocketServer 開啟 WebSocket 的服務
 const wss = new SocketServer({ server })
-
 //開啟前端ui
-//1.
-//open("./index.html",{app:'/usr/bin/chromium-browser'});
-
-//2.
 exec('chromium-browser --no-sandbox ./index.html');
-
-//3.
 
 //當 WebSocket 從外部連結時執行
 wss.on('connection', ws => {
 	console.log('Client connected')
-	//ws.send('findBLEService')
 
+	//交易資訊變數宣告
 	let mqttUrl = null;
 	let topicGetInfo = null;
 	let topicTxGW = null;
@@ -46,11 +33,14 @@ wss.on('connection', ws => {
 	let contractAddr = null;
 
 	let web3 = new Web3(new Web3.providers.WebsocketProvider("ws://211.75.159.144:8503"));
-
+	
+	//找尋TH_lot服務
 	noble.startScanningAsync(['12ab']);
 
 	noble.on('discover', async (peripheral) => {
+		//開啟網頁停車按鈕
 		ws.send('findBLEService');
+		//網頁步驟完成提示
 		ws.send('step1');
 		await noble.stopScanningAsync();
 		console.log('---peripheral with ID ' + peripheral.id + ' found---');
@@ -82,10 +72,13 @@ wss.on('connection', ws => {
 			console.log('  Service UUIDs     = ' + serviceUuids);
 		}
 
+		//網頁點擊按鈕事件
 		ws.on('message', data => {
 			console.log(data);
+			//點擊開始停車
 			if (data == 'startParking')
 				readCharacteristic(peripheral);
+			//點擊停車完畢
 			else if (data == 'endParking') {
 				peripheral.on('disconnect', async () => {
 					var client = mqtt.connect(mqttUrl);
@@ -104,6 +97,7 @@ wss.on('connection', ws => {
 		})
 	});
 
+	//取用TH_lot服務
 	const readCharacteristic = async (peripheral) => {
 		await peripheral.connectAsync();
 		console.log('---connect on BLE---');
@@ -117,6 +111,7 @@ wss.on('connection', ws => {
 		await parseLotJSON(JSON.parse(data.toString()));
 	}
 
+	//解析BLE封包
 	const parseLotJSON = async (data) => {
 		console.log('---get info---');
 		mqttUrl = data.mqtt.url;
@@ -132,7 +127,7 @@ wss.on('connection', ws => {
 			await getContractInfo();
 	}
 
-
+	//透過mqtt取得交易合約資訊
 	const getContractInfo = async => {
 		var client = mqtt.connect(mqttUrl);
 		let data;
@@ -149,6 +144,7 @@ wss.on('connection', ws => {
 		});
 	}
 
+	//解析mqtt封包
 	const parseMQTTJSON = async (data) => {
 		console.log('---get info---');
 		contractAbi = data.abi;
@@ -159,12 +155,14 @@ wss.on('connection', ws => {
 		await signTx();
 	}
 
+	//交易簽章
 	const signTx = async => {
 		var contract = new web3.eth.Contract(contractAbi);
 		//contract.options.address = contractAddr;
 		console.log('---connect on eth node---');
 		let to = contractAddr;
 
+		//設定serial port
 		var port = new SerialPort('/dev/ttyACM0', {
 			baudRate: 115200
 		});
@@ -182,6 +180,7 @@ wss.on('connection', ws => {
 
 		port.on('open', async function () {
 			console.log('COM open')
+			//送出取得公鑰指令
 			port.write('$H_#', function (err) {
 				if (err) {
 					return console.log('Error on write: ', err.message);
@@ -194,10 +193,12 @@ wss.on('connection', ws => {
 				if(buff.match(/#/ig)==null){
 				
 				}
+				//公鑰取得並設定tx
 				else if (buff.match(/#/ig).length >= 1 && publicKey == '') {
 					start = buff.search(/\$4_/) + 3;
 					publicKey = buff.substring(start, start + 128);
 					console.log('publicKey:', publicKey);
+					//公鑰推導地址
 					let account = publicKeyToAddress('04' + publicKey);
 					console.log("Addr:", account);
 					await web3.eth.getTransactionCount(account).then(txCount => {
@@ -211,6 +212,7 @@ wss.on('connection', ws => {
 							});
 							console.log("  encoded ABI:", sdata)
 
+							//產生tx
 							let txParams = {
 								nonce: newNonce,
 								gasPrice: parseInt(gasPrice),
@@ -233,10 +235,12 @@ wss.on('connection', ws => {
 							)
 
 							tx = new EthereumTx(txParams, { common: customCommon })
+							//rlp+hash tx
 							hashedTx = tx.hash(false);
 							console.log('hashedTx:', hashedTx.toString('hex'));
 							await delay(500);
 							buff = 'reset';
+							//設定signData
 							port.write('$2_' + hashedTx.toString('hex') + '#', function (err) {
 								if (err) {
 									return console.log('Error on write: ', err.message);
@@ -244,6 +248,7 @@ wss.on('connection', ws => {
 								console.log('message written on COM:', '$2_' + hashedTx.toString('hex') + '#');
 							});
 							await delay(500);
+							//執行sign指令
 							port.write('$0_#', function (err) {
 								if (err) {
 									return console.log('Error on write: ', err.message);
@@ -264,6 +269,7 @@ wss.on('connection', ws => {
 					s += signedData.substring(64, 128);
 					v = chainId * 2 + 35;
 
+					//確認v值
 					let recoverPubkey = Buffer.from(secp256k1.ecdsaRecover(Buffer.from(signedData, "hex"), 1, hashedTx, false)).toString('hex')
 					if (recoverPubkey == '04' + publicKey.toLowerCase())
 						v += 1
@@ -287,6 +293,7 @@ wss.on('connection', ws => {
 		})
 	}
 
+	//傳送raw
 	const sendRaw = async raw => {
 		ws.send('step4');
 		let rawData = {
@@ -302,6 +309,7 @@ wss.on('connection', ws => {
 			console.log("raw sent!");
 			ws.send('step5');
 		});
+		//接收交易結果
 		client.on('message', async function (topic, message, packet) {
 			data = message.toString();
 			console.log('get tradeState:', data);
